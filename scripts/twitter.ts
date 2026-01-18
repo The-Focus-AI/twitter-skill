@@ -31,6 +31,7 @@
 
 import {
   performAuth,
+  performSetup,
   checkAuth,
   getValidAccessToken,
   SETUP_INSTRUCTIONS,
@@ -405,7 +406,8 @@ Twitter CLI - Full Twitter/X API integration
 Usage:
   pnpm tsx scripts/twitter.ts <command> [options]
 
-Authentication:
+Setup & Authentication:
+  setup                             Configure API credentials (1Password or manual)
   auth                              Run OAuth flow, save tokens
   check                             Verify authentication status
 
@@ -467,7 +469,8 @@ async function main(): Promise<void> {
       }
 
       case "setup": {
-        console.log(SETUP_INSTRUCTIONS);
+        await performSetup();
+        output({ setup: true });
         break;
       }
 

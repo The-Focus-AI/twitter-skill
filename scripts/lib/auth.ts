@@ -2,7 +2,7 @@
  * Twitter OAuth 2.0 PKCE Authentication
  *
  * Token storage: .claude/twitter-skill.local.json (project-local)
- * Credentials: embedded or ~/.config/twitter-skill/credentials.json
+ * Credentials: ~/.config/twitter-skill/credentials.json or 1Password
  */
 
 import path from "node:path";
@@ -10,16 +10,17 @@ import os from "node:os";
 import fs from "node:fs/promises";
 import http from "node:http";
 import crypto from "node:crypto";
+import { execSync, spawn } from "node:child_process";
+import * as readline from "node:readline";
 import open from "open";
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
-// Embedded OAuth credentials - shared across all users of this skill
-// These are for a "Web App" OAuth client in the Focus.AI Twitter Developer Portal
-const EMBEDDED_CLIENT_ID = "SzBqQmhsWTdPWVhpdUhraGh4X1U6MTpjaQ";
-const EMBEDDED_CLIENT_SECRET = "tqg9wXfKg7CXmUz0VlJhxDG_jKwafnLAI6X-6_0W6Mxzr5fQTz";
+// 1Password references for Twitter credentials
+const OP_CLIENT_ID_REF = "op://Development/Twitter Client ID/notesPlain";
+const OP_CLIENT_SECRET_REF = "op://Development/Twitter Client Secret/notesPlain";
 
 // Global config for OAuth client credentials (same across all projects)
 export function getGlobalConfigDir(): string {
@@ -69,36 +70,17 @@ export const SETUP_INSTRUCTIONS = `
 
 This skill needs Twitter OAuth credentials to access the Twitter API.
 
-CREDENTIALS (optional - embedded credentials work for most users):
+Run: pnpm tsx scripts/twitter.ts setup
+
+This will guide you through setting up credentials using either:
+  1. 1Password CLI (recommended if you have it)
+  2. Manual entry
+
+CREDENTIALS STORAGE:
   ${CREDENTIALS_PATH}
 
 TOKENS (per-project, stores which Twitter account to use):
   .claude/twitter-skill.local.json (in your project directory)
-
-STEP 1: Create a Twitter Developer App (if using your own credentials)
-──────────────────────────────────────────────────────────────────────
-1. Go to: https://developer.twitter.com/en/portal/dashboard
-2. Create a new project and app
-3. In "User authentication settings":
-   - App type: "Web App, Automated App or Bot"
-   - App permissions: "Read and Write"
-   - Callback URI: http://127.0.0.1:3000/callback
-   - Website URL: http://127.0.0.1:3000
-
-STEP 2: Save Credentials (optional)
-────────────────────────────────────
-Create ${CREDENTIALS_PATH}:
-{
-  "client_id": "YOUR_CLIENT_ID",
-  "client_secret": "YOUR_CLIENT_SECRET"
-}
-
-STEP 3: Authenticate
-────────────────────
-Run: pnpm tsx scripts/twitter.ts auth
-
-This will open a browser to authenticate with Twitter. The token will be saved
-to your project's .claude/ directory.
 
 ═══════════════════════════════════════════════════════════════════════════════
 `;
@@ -121,11 +103,141 @@ interface TokenData {
 }
 
 // ============================================================================
+// 1Password Integration
+// ============================================================================
+
+function is1PasswordAvailable(): boolean {
+  try {
+    execSync("op --version", { stdio: "pipe" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readFrom1Password(reference: string): string | null {
+  try {
+    const result = execSync(`op read "${reference}"`, {
+      stdio: ["pipe", "pipe", "pipe"],
+      encoding: "utf-8",
+    });
+    return result.trim();
+  } catch {
+    return null;
+  }
+}
+
+async function loadCredentialsFrom1Password(): Promise<Credentials | null> {
+  const clientId = readFrom1Password(OP_CLIENT_ID_REF);
+  const clientSecret = readFrom1Password(OP_CLIENT_SECRET_REF);
+
+  if (clientId && clientSecret) {
+    return { client_id: clientId, client_secret: clientSecret };
+  }
+  return null;
+}
+
+// ============================================================================
+// Interactive Setup
+// ============================================================================
+
+function askQuestion(question: string): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+}
+
+async function credentialsFileExists(): Promise<boolean> {
+  try {
+    await fs.access(CREDENTIALS_PATH);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function performSetup(): Promise<void> {
+  console.error(`
+═══════════════════════════════════════════════════════════════════════════════
+                       TWITTER SKILL - CREDENTIAL SETUP
+═══════════════════════════════════════════════════════════════════════════════
+`);
+
+  // Check if credentials file already exists
+  if (await credentialsFileExists()) {
+    console.error(`Credentials already configured at ${CREDENTIALS_PATH}`);
+    const answer = await askQuestion("Overwrite existing credentials? (y/N): ");
+    if (answer.toLowerCase() !== "y") {
+      console.error("Setup cancelled.");
+      return;
+    }
+  }
+
+  const has1Password = is1PasswordAvailable();
+
+  console.error("How would you like to provide Twitter API credentials?\n");
+  if (has1Password) {
+    console.error("  1. Load from 1Password (recommended)");
+    console.error("  2. Enter manually");
+  } else {
+    console.error("  1. Enter manually");
+    console.error("  (1Password CLI not detected - install 'op' for 1Password support)");
+  }
+  console.error("");
+
+  const choice = await askQuestion("Enter choice (1" + (has1Password ? " or 2" : "") + "): ");
+
+  let credentials: Credentials;
+
+  if (has1Password && choice === "1") {
+    // Load from 1Password
+    console.error("\nLoading credentials from 1Password...");
+    const opCreds = await loadCredentialsFrom1Password();
+    if (!opCreds) {
+      console.error("Failed to load credentials from 1Password.");
+      console.error("Make sure you have these items in your 1Password:");
+      console.error(`  - ${OP_CLIENT_ID_REF}`);
+      console.error(`  - ${OP_CLIENT_SECRET_REF}`);
+      throw new Error("1Password credentials not found");
+    }
+    credentials = opCreds;
+    console.error("✓ Loaded credentials from 1Password");
+  } else {
+    // Manual entry
+    console.error("\nEnter your Twitter API credentials:");
+    console.error("(Get these from https://developer.twitter.com/en/portal/dashboard)\n");
+
+    const clientId = await askQuestion("Client ID: ");
+    const clientSecret = await askQuestion("Client Secret: ");
+
+    if (!clientId || !clientSecret) {
+      throw new Error("Both Client ID and Client Secret are required");
+    }
+
+    credentials = { client_id: clientId, client_secret: clientSecret };
+  }
+
+  // Save credentials
+  await fs.mkdir(GLOBAL_CONFIG_DIR, { recursive: true });
+  await fs.writeFile(CREDENTIALS_PATH, JSON.stringify(credentials, null, 2));
+  console.error(`\n✓ Credentials saved to ${CREDENTIALS_PATH}`);
+  console.error("\nNext step: Run 'pnpm tsx scripts/twitter.ts auth' to authenticate with Twitter.");
+}
+
+// ============================================================================
 // Credential & Token Management
 // ============================================================================
 
 export async function loadCredentials(): Promise<Credentials> {
-  // First, check for user-provided credentials (allows overriding embedded ones)
+  // Check for saved credentials file
   try {
     const content = await fs.readFile(CREDENTIALS_PATH, "utf-8");
     const data = JSON.parse(content);
@@ -137,14 +249,21 @@ export async function loadCredentials(): Promise<Credentials> {
       };
     }
   } catch {
-    // Fall through to embedded credentials
+    // No saved credentials
   }
 
-  // Fall back to embedded credentials (no setup required)
-  return {
-    client_id: EMBEDDED_CLIENT_ID,
-    client_secret: EMBEDDED_CLIENT_SECRET,
-  };
+  // Try 1Password as fallback
+  if (is1PasswordAvailable()) {
+    const opCreds = await loadCredentialsFrom1Password();
+    if (opCreds) {
+      return opCreds;
+    }
+  }
+
+  throw new Error(
+    `No credentials found. Run: pnpm tsx scripts/twitter.ts setup\n` +
+    `Credentials will be saved to: ${CREDENTIALS_PATH}`
+  );
 }
 
 export async function findTokenPath(): Promise<string | null> {
