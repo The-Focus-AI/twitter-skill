@@ -1,5 +1,5 @@
 ---
-name: Twitter
+name: twitter
 description: This skill should be used when the user asks to "post a tweet", "read timeline", "check twitter", "like a tweet", "retweet", "search twitter", "manage twitter lists", "twitter auth", "get twitter user", "delete tweet", or mentions Twitter/X integration. Provides full Twitter API v2 access for posting, reading, engagement, and list management.
 version: 1.0.0
 ---
