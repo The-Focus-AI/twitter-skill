@@ -46,10 +46,59 @@ import type {
 } from "./lib/types.js";
 
 // ============================================================================
-// API Client
+// API Client with Rate Limit Tracking
 // ============================================================================
 
 const TWITTER_API_BASE = "https://api.twitter.com/2";
+
+interface RateLimitInfo {
+  limit: number;
+  remaining: number;
+  reset: Date;
+  resetInSeconds: number;
+}
+
+function parseRateLimitHeaders(headers: Headers): RateLimitInfo | null {
+  const limit = headers.get("x-rate-limit-limit");
+  const remaining = headers.get("x-rate-limit-remaining");
+  const reset = headers.get("x-rate-limit-reset");
+
+  if (!limit || !remaining || !reset) {
+    return null;
+  }
+
+  const resetTimestamp = parseInt(reset, 10) * 1000;
+  const resetDate = new Date(resetTimestamp);
+  const resetInSeconds = Math.max(0, Math.ceil((resetTimestamp - Date.now()) / 1000));
+
+  return {
+    limit: parseInt(limit, 10),
+    remaining: parseInt(remaining, 10),
+    reset: resetDate,
+    resetInSeconds,
+  };
+}
+
+function logRateLimit(endpoint: string, info: RateLimitInfo | null): void {
+  if (!info) return;
+
+  const resetTime = info.resetInSeconds > 60
+    ? `${Math.ceil(info.resetInSeconds / 60)}m`
+    : `${info.resetInSeconds}s`;
+
+  // Color code: green if >50%, yellow if >20%, red if <=20%
+  const pct = info.remaining / info.limit;
+  let status: string;
+  if (pct > 0.5) {
+    status = `${info.remaining}/${info.limit}`;
+  } else if (pct > 0.2) {
+    status = `${info.remaining}/${info.limit} (low)`;
+  } else {
+    status = `${info.remaining}/${info.limit} (CRITICAL)`;
+  }
+
+  console.error(`[rate-limit] ${endpoint}: ${status}, resets in ${resetTime}`);
+}
 
 async function twitterRequest<T>(
   endpoint: string,
@@ -67,6 +116,11 @@ async function twitterRequest<T>(
     },
   });
 
+  // Parse and log rate limit info
+  const rateLimitInfo = parseRateLimitHeaders(response.headers);
+  const endpointPath = endpoint.split("?")[0]; // Remove query params for cleaner logging
+  logRateLimit(endpointPath, rateLimitInfo);
+
   // Handle 204 No Content (for delete operations)
   if (response.status === 204) {
     return { deleted: true } as T;
@@ -76,11 +130,17 @@ async function twitterRequest<T>(
 
   if (!response.ok) {
     const error = data as { detail?: string; title?: string; errors?: Array<{ message?: string }> };
-    const message =
+    let message =
       error.detail ||
       error.title ||
       error.errors?.[0]?.message ||
       `API request failed: ${response.status}`;
+
+    // Add rate limit context for 429 errors
+    if (response.status === 429 && rateLimitInfo) {
+      message += ` (resets in ${rateLimitInfo.resetInSeconds}s)`;
+    }
+
     throw new Error(message);
   }
 
