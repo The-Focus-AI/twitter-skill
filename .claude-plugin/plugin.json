@@ -1,6 +1,6 @@
 {
   "name": "twitter-skill",
-  "version": "1.0.0",
-  "description": "Twitter/X API integration - post tweets, read timeline, manage lists, engage with content",
+  "version": "1.1.0",
+  "description": "Twitter/X API integration - post tweets, read timeline, manage lists, engage with content, network analysis",
   "skills": ["./.claude-plugin/skills/twitter"]
 }

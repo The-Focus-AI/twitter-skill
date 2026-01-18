@@ -344,6 +344,24 @@ async function unretweet(tweetId: string): Promise<{ retweeted: boolean }> {
   return { retweeted: response.data?.retweeted ?? false };
 }
 
+async function getTweetRetweeters(tweetId: string): Promise<TwitterUser[]> {
+  const fields = [
+    "id",
+    "name",
+    "username",
+    "description",
+    "profile_image_url",
+    "public_metrics",
+    "verified",
+  ];
+
+  const response = await twitterRequest<TwitterApiResponse<TwitterUser[]>>(
+    `/tweets/${tweetId}/retweeted_by?user.fields=${fields.join(",")}&max_results=100`
+  );
+
+  return response.data || [];
+}
+
 // ============================================================================
 // Search Commands
 // ============================================================================
@@ -487,6 +505,7 @@ Engagement:
   unlike <id>                       Unlike a tweet
   retweet <id>                      Retweet
   unretweet <id>                    Undo retweet
+  retweeters <id>                   Get users who retweeted a tweet
 
 Search:
   search "query"                    Search tweets
@@ -636,6 +655,16 @@ async function main(): Promise<void> {
         }
         const result = await unretweet(id);
         output(result);
+        break;
+      }
+
+      case "retweeters": {
+        const id = args[1];
+        if (!id) {
+          fail("Usage: retweeters <id>");
+        }
+        const users = await getTweetRetweeters(id);
+        output(users);
         break;
       }
 
