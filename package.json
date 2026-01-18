@@ -1,0 +1,19 @@
+{
+  "name": "twitter-skill",
+  "version": "1.0.0",
+  "description": "Twitter/X API integration for Claude Code - post tweets, read timeline, manage lists",
+  "type": "module",
+  "scripts": {
+    "twitter": "tsx scripts/twitter.ts"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "open": "^10.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
