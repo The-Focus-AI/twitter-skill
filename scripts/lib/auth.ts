@@ -12,7 +12,30 @@ import http from "node:http";
 import crypto from "node:crypto";
 import { execSync, spawn } from "node:child_process";
 import * as readline from "node:readline";
-import open from "open";
+// Cross-platform browser open using built-in Node.js
+function openBrowser(url: string): void {
+  const platform = process.platform;
+  let command: string;
+  let args: string[];
+
+  if (platform === "darwin") {
+    command = "open";
+    args = [url];
+  } else if (platform === "win32") {
+    command = "cmd";
+    args = ["/c", "start", "", url];
+  } else {
+    // Linux and others
+    command = "xdg-open";
+    args = [url];
+  }
+
+  const child = spawn(command, args, {
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+}
 
 // ============================================================================
 // Configuration
@@ -526,9 +549,11 @@ export async function performAuth(global: boolean = false): Promise<void> {
     });
 
     server.listen(PORT, "127.0.0.1", () => {
-      open(authUrl.toString()).catch(() => {
+      try {
+        openBrowser(authUrl.toString());
+      } catch {
         console.error("Could not open browser automatically.");
-      });
+      }
     });
 
     // Timeout after 5 minutes
