@@ -35,8 +35,15 @@ export const CREDENTIALS_PATH = path.join(GLOBAL_CONFIG_DIR, "credentials.json")
 const PROJECT_TOKEN_DIR = ".claude";
 const PROJECT_TOKEN_FILE = "twitter-skill.local.json";
 
+// Global token storage (fallback when no project-local token)
+const GLOBAL_TOKEN_FILE = "tokens.json";
+
 export function getProjectTokenPath(): string {
   return path.join(process.cwd(), PROJECT_TOKEN_DIR, PROJECT_TOKEN_FILE);
+}
+
+export function getGlobalTokenPath(): string {
+  return path.join(GLOBAL_CONFIG_DIR, GLOBAL_TOKEN_FILE);
 }
 
 // OAuth endpoints
@@ -267,10 +274,20 @@ export async function loadCredentials(): Promise<Credentials> {
 }
 
 export async function findTokenPath(): Promise<string | null> {
+  // Check project-local first
   const projectPath = getProjectTokenPath();
   try {
     await fs.access(projectPath);
     return projectPath;
+  } catch {
+    // Fall back to global config
+  }
+
+  // Check global config directory
+  const globalPath = getGlobalTokenPath();
+  try {
+    await fs.access(globalPath);
+    return globalPath;
   } catch {
     return null;
   }
@@ -282,7 +299,9 @@ export async function loadToken(): Promise<TokenData> {
   if (!tokenPath) {
     throw new Error(
       `Token not found. Run: pnpm tsx scripts/twitter.ts auth\n` +
-      `Token will be saved to: ${getProjectTokenPath()}`
+      `Looked in:\n` +
+      `  - ${getProjectTokenPath()} (project-local)\n` +
+      `  - ${getGlobalTokenPath()} (global fallback)`
     );
   }
 
@@ -290,8 +309,8 @@ export async function loadToken(): Promise<TokenData> {
   return JSON.parse(content) as TokenData;
 }
 
-export async function saveToken(tokenData: TokenData): Promise<void> {
-  const tokenPath = getProjectTokenPath();
+export async function saveToken(tokenData: TokenData, global: boolean = false): Promise<void> {
+  const tokenPath = global ? getGlobalTokenPath() : getProjectTokenPath();
   const tokenDir = path.dirname(tokenPath);
 
   await fs.mkdir(tokenDir, { recursive: true });
@@ -416,15 +435,18 @@ export async function ensureGitignore(): Promise<void> {
 // OAuth 2.0 PKCE Flow
 // ============================================================================
 
-export async function performAuth(): Promise<void> {
+export async function performAuth(global: boolean = false): Promise<void> {
   const credentials = await loadCredentials();
-  const tokenDir = path.dirname(getProjectTokenPath());
+  const tokenPath = global ? getGlobalTokenPath() : getProjectTokenPath();
+  const tokenDir = path.dirname(tokenPath);
 
-  // Ensure .claude directory exists
+  // Ensure token directory exists
   await fs.mkdir(tokenDir, { recursive: true });
 
-  // Ensure .gitignore is configured to exclude tokens
-  await ensureGitignore();
+  // Ensure .gitignore is configured to exclude tokens (only for project-local)
+  if (!global) {
+    await ensureGitignore();
+  }
 
   // Generate PKCE challenge
   const codeVerifier = generateCodeVerifier();
@@ -550,8 +572,9 @@ export async function performAuth(): Promise<void> {
     token_type: tokenResult.token_type || "bearer",
   };
 
-  await saveToken(tokenData);
-  console.error(`\n✓ Token saved to ${getProjectTokenPath()}`);
+  await saveToken(tokenData, global);
+  const savedPath = global ? getGlobalTokenPath() : getProjectTokenPath();
+  console.error(`\n✓ Token saved to ${savedPath}`);
 }
 
 // ============================================================================

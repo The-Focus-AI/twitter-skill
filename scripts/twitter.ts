@@ -36,6 +36,8 @@ import {
   performSetup,
   checkAuth,
   getValidAccessToken,
+  getProjectTokenPath,
+  getGlobalTokenPath,
   SETUP_INSTRUCTIONS,
 } from "./lib/auth.js";
 import { output, fail } from "./lib/output.js";
@@ -543,7 +545,8 @@ Usage:
 
 Setup & Authentication:
   setup                             Configure API credentials (1Password or manual)
-  auth                              Run OAuth flow, save tokens
+  auth [--global]                   Run OAuth flow, save tokens
+                                    --global: Save to ~/.config/twitter-skill/tokens.json
   check                             Verify authentication status
 
 User:
@@ -594,9 +597,11 @@ async function main(): Promise<void> {
     switch (command) {
       // Authentication
       case "auth": {
-        await performAuth();
+        const globalFlag = args.includes("--global");
+        await performAuth(globalFlag);
         console.error("\n✓ Authentication complete!");
-        output({ authenticated: true });
+        const tokenLocation = globalFlag ? getGlobalTokenPath() : getProjectTokenPath();
+        output({ authenticated: true, tokenPath: tokenLocation });
         break;
       }
 

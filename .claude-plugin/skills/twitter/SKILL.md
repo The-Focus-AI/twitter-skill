@@ -57,15 +57,22 @@ If you prefer to use your own Twitter Developer credentials:
 
 ## Token Storage
 
-Tokens are stored per-project at `.claude/twitter-skill.local.json`. This allows different projects to use different Twitter accounts. The file is automatically added to `.gitignore`.
+Tokens are looked up in this order:
+1. **Project-local**: `.claude/twitter-skill.local.json` (in current project directory)
+2. **Global fallback**: `~/.config/twitter-skill/tokens.json`
+
+This allows different projects to use different Twitter accounts, with a global default for projects without local tokens. Project-local tokens are automatically added to `.gitignore`.
 
 ## Available Commands
 
 ### Authentication
 
 ```bash
-# Run OAuth flow (opens browser)
+# Run OAuth flow (opens browser) - saves token to project-local .claude/
 pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts auth
+
+# Run OAuth flow and save token globally (for use across all projects)
+pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts auth --global
 
 # Check authentication status
 pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts check
