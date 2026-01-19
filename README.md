@@ -40,6 +40,8 @@ check                             # Verify authentication status
 ```bash
 me [--email]                      # Get authenticated user info
 user <username>                   # Get user by username
+user-id <id>                      # Get user by ID
+users <id1,id2,...>               # Get multiple users by IDs (max 100)
 ```
 
 ### Tweets

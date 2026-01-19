@@ -20,6 +20,8 @@
  *   unretweet <id>                Undo retweet
  *   search "query"                Search tweets
  *   user <username>               Get user by username
+ *   user-id <id>                  Get user by ID
+ *   users <id1,id2,...>           Get multiple users by IDs (max 100)
  *   lists                         Get my lists
  *   list <id>                     Get list details
  *   list-members <id>             Get members of a list
@@ -207,6 +209,61 @@ async function getUserByUsername(username: string): Promise<TwitterUser> {
   }
 
   return response.data;
+}
+
+async function getUserById(userId: string): Promise<TwitterUser> {
+  const fields = [
+    "id",
+    "name",
+    "username",
+    "created_at",
+    "description",
+    "location",
+    "profile_image_url",
+    "protected",
+    "verified",
+    "verified_type",
+    "url",
+    "public_metrics",
+  ];
+
+  const response = await twitterRequest<TwitterApiResponse<TwitterUser>>(
+    `/users/${userId}?user.fields=${fields.join(",")}`
+  );
+
+  if (!response.data) {
+    throw new Error(`User with ID ${userId} not found`);
+  }
+
+  return response.data;
+}
+
+async function getUsersByIds(userIds: string[]): Promise<TwitterUser[]> {
+  if (userIds.length === 0) return [];
+  if (userIds.length > 100) {
+    throw new Error("Maximum 100 user IDs per request");
+  }
+
+  const fields = [
+    "id",
+    "name",
+    "username",
+    "created_at",
+    "description",
+    "location",
+    "profile_image_url",
+    "protected",
+    "verified",
+    "verified_type",
+    "url",
+    "public_metrics",
+  ];
+
+  const response = await twitterRequest<TwitterApiResponse<TwitterUser[]>>(
+    `/users?ids=${userIds.join(",")}&user.fields=${fields.join(",")}`
+  );
+
+  return response.data || [];
 }
 
 // ============================================================================
@@ -492,6 +549,8 @@ Setup & Authentication:
 User:
   me [--email]                      Get authenticated user info
   user <username>                   Get user by username
+  user-id <id>                      Get user by ID
+  users <id1,id2,...>               Get multiple users by IDs (max 100)
 
 Tweets:
   post "text"                       Post a tweet
@@ -568,6 +627,27 @@ async function main(): Promise<void> {
         }
         const user = await getUserByUsername(username.replace(/^@/, ""));
         output(user);
+        break;
+      }
+
+      case "user-id": {
+        const userId = args[1];
+        if (!userId) {
+          fail("Usage: user-id <id>");
+        }
+        const user = await getUserById(userId);
+        output(user);
+        break;
+      }
+
+      case "users": {
+        const idsArg = args[1];
+        if (!idsArg) {
+          fail("Usage: users <id1,id2,...>");
+        }
+        const userIds = idsArg.split(",").map((id) => id.trim());
+        const users = await getUsersByIds(userIds);
+        output(users);
         break;
       }
 

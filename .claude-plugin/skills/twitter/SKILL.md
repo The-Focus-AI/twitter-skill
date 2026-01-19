@@ -82,6 +82,12 @@ pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts me --email
 
 # Get user by username
 pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts user elonmusk
+
+# Get user by ID
+pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts user-id 44196397
+
+# Get multiple users by IDs (max 100, comma-separated)
+pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts users "44196397,12,178273"
 ```
 
 ### Posting & Deleting Tweets
