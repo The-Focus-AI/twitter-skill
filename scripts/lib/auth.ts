@@ -337,7 +337,7 @@ function generateState(): string {
 // Token Refresh
 // ============================================================================
 
-async function refreshAccessToken(credentials: Credentials, refreshToken: string): Promise<TokenData> {
+async function refreshAccessToken(credentials: Credentials, refreshToken: string, tokenPath: string): Promise<TokenData> {
   const basicAuth = Buffer.from(`${credentials.client_id}:${credentials.client_secret}`).toString("base64");
 
   const response = await fetch(TWITTER_TOKEN_URL, {
@@ -378,7 +378,9 @@ async function refreshAccessToken(credentials: Credentials, refreshToken: string
     token_type: data.token_type || "bearer",
   };
 
-  await saveToken(tokenData);
+  // Save back to the original location
+  const isGlobal = tokenPath === getGlobalTokenPath();
+  await saveToken(tokenData, isGlobal);
   return tokenData;
 }
 
@@ -388,13 +390,25 @@ async function refreshAccessToken(credentials: Credentials, refreshToken: string
 
 export async function getValidAccessToken(): Promise<string> {
   const credentials = await loadCredentials();
-  let tokenData = await loadToken();
+  const tokenPath = await findTokenPath();
+
+  if (!tokenPath) {
+    throw new Error(
+      `Token not found. Run: pnpm tsx scripts/twitter.ts auth\n` +
+      `Looked in:\n` +
+      `  - ${getProjectTokenPath()} (project-local)\n` +
+      `  - ${getGlobalTokenPath()} (global fallback)`
+    );
+  }
+
+  const content = await fs.readFile(tokenPath, "utf-8");
+  let tokenData = JSON.parse(content) as TokenData;
 
   // Refresh if expired (with 5 minute buffer)
   const bufferMs = 5 * 60 * 1000;
   if (tokenData.expires_at < Date.now() + bufferMs) {
     console.error("Token expired or expiring soon, refreshing...");
-    tokenData = await refreshAccessToken(credentials, tokenData.refresh_token);
+    tokenData = await refreshAccessToken(credentials, tokenData.refresh_token, tokenPath);
     console.error("Token refreshed successfully");
   }
 
