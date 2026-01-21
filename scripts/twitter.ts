@@ -305,6 +305,7 @@ async function getTweet(id: string): Promise<Tweet> {
     "lang",
     "entities",
     "referenced_tweets",
+    "note_tweet",
   ];
 
   const response = await twitterRequest<TwitterApiResponse<Tweet>>(
@@ -326,6 +327,7 @@ async function getMyTweets(): Promise<Tweet[]> {
     "created_at",
     "public_metrics",
     "source",
+    "note_tweet",
   ];
 
   const response = await twitterRequest<TwitterApiResponse<Tweet[]>>(
@@ -342,6 +344,7 @@ async function getTimeline(): Promise<Tweet[]> {
     "author_id",
     "created_at",
     "public_metrics",
+    "note_tweet",
   ];
 
   const response = await twitterRequest<TwitterApiResponse<Tweet[]>>(
@@ -435,6 +438,7 @@ async function searchTweets(query: string): Promise<Tweet[]> {
     "created_at",
     "public_metrics",
     "source",
+    "note_tweet",
   ];
 
   const response = await twitterRequest<SearchTweetsResponse>(
@@ -447,6 +451,23 @@ async function searchTweets(query: string): Promise<Tweet[]> {
 // ============================================================================
 // List Commands
 // ============================================================================
+
+async function getListTweets(listId: string): Promise<Tweet[]> {
+  const fields = [
+    "id",
+    "text",
+    "author_id",
+    "created_at",
+    "public_metrics",
+    "note_tweet",
+  ];
+
+  const response = await twitterRequest<TwitterApiResponse<Tweet[]>>(
+    `/lists/${listId}/tweets?tweet.fields=${fields.join(",")}&max_results=20`
+  );
+
+  return response.data || [];
+}
 
 async function getMyLists(): Promise<TwitterList[]> {
   const me = await getMe();
@@ -604,6 +625,7 @@ Trends:
 Lists:
   lists                             Get my lists
   list <id>                         Get list details
+  list-tweets <id>                  Get tweets from a list
   list-members <id>                 Get members of a list
   list-add <list-id> <user-id>      Add user to list
   list-remove <list-id> <user-id>   Remove user from list
@@ -824,6 +846,16 @@ async function main(): Promise<void> {
         }
         const members = await getListMembers(id);
         output(members);
+        break;
+      }
+
+      case "list-tweets": {
+        const id = args[1];
+        if (!id) {
+          fail("Usage: list-tweets <id>");
+        }
+        const tweets = await getListTweets(id);
+        output(tweets);
         break;
       }
 

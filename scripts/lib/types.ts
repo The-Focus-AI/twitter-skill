@@ -41,6 +41,10 @@ export interface Tweet {
   source?: string;
   lang?: string;
   entities?: TweetEntities;
+  note_tweet?: {
+    text: string;
+    entities?: TweetEntities;
+  };
 }
 
 export interface ReferencedTweet {

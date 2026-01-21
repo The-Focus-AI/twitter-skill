@@ -1,7 +1,7 @@
 ---
 name: twitter
 description: This skill should be used when the user asks to "post a tweet", "read timeline", "check twitter", "like a tweet", "retweet", "search twitter", "manage twitter lists", "twitter auth", "get twitter user", "delete tweet", or mentions Twitter/X integration. Provides full Twitter API v2 access for posting, reading, engagement, and list management.
-version: 1.0.0
+version: 1.2.0
 ---
 
 # Twitter/X API Integration
@@ -111,8 +111,11 @@ pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts delete 1234567890
 
 ### Reading Tweets
 
+**Note on Long-Form Content (Articles/Note Tweets):**
+The skill automatically requests the `note_tweet` field. If a tweet contains long-form content (up to 25k chars), the full text will be returned in the `note_tweet` object within the response.
+
 ```bash
-# Get a specific tweet
+# Get specific tweet (long-form content supported automatically)
 pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts tweet 1234567890
 
 # Get my recent tweets
@@ -153,6 +156,9 @@ pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts lists
 
 # Get list details
 pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts list 1234567890
+
+# Get tweets from a list
+pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts list-tweets 1234567890
 
 # Get list members
 pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts list-members 1234567890
