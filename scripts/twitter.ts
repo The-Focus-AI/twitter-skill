@@ -47,6 +47,8 @@ import type {
   Tweet,
   TwitterList,
   SearchTweetsResponse,
+  PersonalizedTrend,
+  PersonalizedTrendsResponse,
 } from "./lib/types.js";
 
 // ============================================================================
@@ -533,6 +535,30 @@ async function deleteList(listId: string): Promise<{ deleted: boolean }> {
 }
 
 // ============================================================================
+// Trends Commands
+// ============================================================================
+
+async function getPersonalizedTrends(): Promise<PersonalizedTrend[]> {
+  const url = `/users/personalized_trends?personalized_trend.fields=category,post_count,trend_name,trending_since`;
+
+  const response = await twitterRequest<PersonalizedTrendsResponse>(url);
+
+  if (!response.data) {
+    throw new Error("No trending data returned");
+  }
+
+  // Check for non-premium user response (all "Unknown")
+  const looksLikeNonPremium = response.data.length > 0 && 
+    response.data.every(t => t.category === "Unknown" && t.post_count === "Unknown");
+    
+  if (looksLikeNonPremium) {
+    console.error("Warning: Received 'Unknown' for trend categories/counts. This endpoint requires X Premium for full data.");
+  }
+
+  return response.data;
+}
+
+// ============================================================================
 // CLI
 // ============================================================================
 
@@ -571,6 +597,9 @@ Engagement:
 
 Search:
   search "query"                    Search tweets
+
+Trends:
+  trends                            Get personalized trending topics (requires X Premium)
 
 Lists:
   lists                             Get my lists
@@ -761,6 +790,13 @@ async function main(): Promise<void> {
         }
         const tweets = await searchTweets(query);
         output(tweets);
+        break;
+      }
+
+      // Trends
+      case "trends": {
+        const trends = await getPersonalizedTrends();
+        output(trends);
         break;
       }
 

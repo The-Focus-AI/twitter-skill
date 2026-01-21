@@ -112,6 +112,18 @@ export interface TwitterList {
 // API Response Types
 // ============================================================================
 
+export interface PersonalizedTrend {
+  trend_name: string;
+  category?: string;
+  post_count?: string;
+  trending_since?: string;
+}
+
+export interface PersonalizedTrendsResponse {
+  data: PersonalizedTrend[];
+  errors?: TwitterApiError[];
+}
+
 export interface TwitterApiResponse<T> {
   data?: T;
   includes?: ResponseIncludes;

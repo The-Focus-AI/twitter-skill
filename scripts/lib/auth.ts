@@ -504,6 +504,8 @@ export async function performAuth(global: boolean = false): Promise<void> {
   console.error("If browser doesn't open, visit:\n", authUrl.toString(), "\n");
 
   const code = await new Promise<string>((resolve, reject) => {
+    let timeoutId: NodeJS.Timeout;
+
     const server = http.createServer((req, res) => {
       const url = new URL(req.url!, `http://127.0.0.1:${PORT}`);
       const returnedCode = url.searchParams.get("code");
@@ -515,6 +517,7 @@ export async function performAuth(global: boolean = false): Promise<void> {
         res.writeHead(400, { "Content-Type": "text/html" });
         res.end(`<h1>Error: ${error}</h1><p>${errorDescription || ""}</p><p>You can close this window.</p>`);
         server.close();
+        clearTimeout(timeoutId);
         reject(new Error(`${error}: ${errorDescription || ""}`));
         return;
       }
@@ -523,6 +526,7 @@ export async function performAuth(global: boolean = false): Promise<void> {
         res.writeHead(400, { "Content-Type": "text/html" });
         res.end(`<h1>Error: State mismatch</h1><p>Possible CSRF attack. You can close this window.</p>`);
         server.close();
+        clearTimeout(timeoutId);
         reject(new Error("State mismatch - possible CSRF attack"));
         return;
       }
@@ -538,9 +542,13 @@ export async function performAuth(global: boolean = false): Promise<void> {
               </div>
             </body>
           </html>
-        `);
-        server.close();
-        resolve(returnedCode);
+        `, () => {
+          // Close all connections to ensure the process doesn't hang
+          server.closeAllConnections();
+          server.close();
+          clearTimeout(timeoutId);
+          resolve(returnedCode);
+        });
         return;
       }
 
@@ -557,7 +565,7 @@ export async function performAuth(global: boolean = false): Promise<void> {
     });
 
     // Timeout after 5 minutes
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       server.close();
       reject(new Error("Authentication timeout (5 minutes)"));
     }, 300000);
