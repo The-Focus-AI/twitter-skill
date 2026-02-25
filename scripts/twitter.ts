@@ -306,6 +306,7 @@ async function getTweet(id: string): Promise<Tweet> {
     "entities",
     "referenced_tweets",
     "note_tweet",
+    "article",
   ];
 
   const response = await twitterRequest<TwitterApiResponse<Tweet>>(
@@ -328,10 +329,11 @@ async function getMyTweets(): Promise<Tweet[]> {
     "public_metrics",
     "source",
     "note_tweet",
+    "article",
   ];
 
   const response = await twitterRequest<TwitterApiResponse<Tweet[]>>(
-    `/users/${me.id}/tweets?tweet.fields=${fields.join(",")}&max_results=10`
+    `/users/${me.id}/tweets?tweet.fields=${fields.join(",")}&max_results=100`
   );
 
   return response.data || [];
@@ -345,6 +347,7 @@ async function getTimeline(): Promise<Tweet[]> {
     "created_at",
     "public_metrics",
     "note_tweet",
+    "article",
   ];
 
   const response = await twitterRequest<TwitterApiResponse<Tweet[]>>(
@@ -439,10 +442,11 @@ async function searchTweets(query: string): Promise<Tweet[]> {
     "public_metrics",
     "source",
     "note_tweet",
+    "article",
   ];
 
   const response = await twitterRequest<SearchTweetsResponse>(
-    `/tweets/search/recent?query=${encodeURIComponent(query)}&tweet.fields=${fields.join(",")}&max_results=10`
+    `/tweets/search/recent?query=${encodeURIComponent(query)}&tweet.fields=${fields.join(",")}&max_results=100`
   );
 
   return response.data || [];
@@ -460,6 +464,7 @@ async function getListTweets(listId: string): Promise<Tweet[]> {
     "created_at",
     "public_metrics",
     "note_tweet",
+    "article",
   ];
 
   const response = await twitterRequest<TwitterApiResponse<Tweet[]>>(
