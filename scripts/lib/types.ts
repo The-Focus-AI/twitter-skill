@@ -45,6 +45,9 @@ export interface Tweet {
     text: string;
     entities?: TweetEntities;
   };
+  attachments?: {
+    media_keys?: string[];
+  };
 }
 
 export interface ReferencedTweet {
@@ -135,9 +138,20 @@ export interface TwitterApiResponse<T> {
   errors?: TwitterApiError[];
 }
 
+export interface MediaObject {
+  media_key: string;
+  type: "photo" | "video" | "animated_gif";
+  url?: string;
+  preview_image_url?: string;
+  width?: number;
+  height?: number;
+  alt_text?: string;
+}
+
 export interface ResponseIncludes {
   users?: TwitterUser[];
   tweets?: Tweet[];
+  media?: MediaObject[];
 }
 
 export interface ResponseMeta {

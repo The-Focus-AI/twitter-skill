@@ -1,6 +1,6 @@
 ---
 name: twitter
-description: This skill should be used when the user asks to "post a tweet", "read timeline", "check twitter", "like a tweet", "retweet", "search twitter", "manage twitter lists", "twitter auth", "get twitter user", "delete tweet", "trending topics", "what's trending", or mentions Twitter/X integration. Provides full Twitter API v2 access for posting, reading, engagement, and list management.
+description: This skill should be used when the user asks to "post a tweet", "read timeline", "check twitter", "like a tweet", "retweet", "search twitter", "manage twitter lists", "twitter auth", "get twitter user", "delete tweet", "trending topics", "what's trending", "bookmarks", "bookmark a tweet", "saved tweets", or mentions Twitter/X integration. Provides full Twitter API v2 access for posting, reading, engagement, bookmarks, and list management.
 version: 1.3.0
 ---
 
@@ -194,6 +194,29 @@ pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts retweeters 1234567890
 - `retweet/unretweet`: Returns `{ retweeted: boolean }`
 - `retweeters`: Returns array of user objects (see User Information section)
 
+### Bookmarks
+
+```bash
+# Get my bookmarked tweets
+pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts bookmarks
+
+# Bookmark a tweet
+pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts bookmark 1234567890
+
+# Remove a bookmark
+pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts unbookmark 1234567890
+```
+
+# Generate a navigable HTML archive of all bookmarks (with images, author profiles, search/sort)
+pnpm tsx ${CLAUDE_PLUGIN_ROOT}/scripts/twitter.ts bookmarks-archive reports/bookmarks.html
+```
+
+**Response fields:**
+- `bookmarks`: Returns `{ tweets: [...], includes: { media: [...] } }` with tweet objects and media expansions
+- `bookmark`: Returns `{ bookmarked: true }` on success
+- `unbookmark`: Returns `{ bookmarked: false }` on success
+- `bookmarks-archive`: Returns `{ path: string, tweets: number }` — the written file path and tweet count
+
 ### Search
 
 ```bash
@@ -326,6 +349,12 @@ Status indicators:
 1. List existing lists: `lists`
 2. Get members: `list-members <id>`
 3. Add/remove members as needed
+
+### Review Bookmarks
+
+1. Get bookmarked tweets: `bookmarks`
+2. Review saved tweets and summarize for the user
+3. Get full details on specific tweets: `tweet <id>`
 
 ### Research a Topic
 

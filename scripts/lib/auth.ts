@@ -86,6 +86,8 @@ export const SCOPES = [
   "list.write",
   "like.read",
   "like.write",
+  "bookmark.read",
+  "bookmark.write",
   "offline.access",
 ].join(" ");
 
